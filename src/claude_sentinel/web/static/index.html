@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<title>Claude Sentinel · Live</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+<div class="scanlines" aria-hidden="true"></div>
+
+<header class="top">
+  <div class="brand"><span class="mark">◈</span> CLAUDE SENTINEL <span class="tag">LIVE</span></div>
+  <div class="top-right">
+    <span id="reference-badge" class="badge muted">REFERENCE MODE</span>
+    <span id="clock" class="mono muted">--:--:--</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero glass" id="hero">
+    <div class="hero-copy">
+      <div id="eyebrow" class="eyebrow">INITIALIZING</div>
+      <h1 id="headline" class="headline">正在读取环境…</h1>
+      <p id="reason" class="reason">本地只读检测 · 官方区域闸门优先</p>
+      <div id="chips" class="chips"></div>
+      <div class="actions">
+        <button id="scan" class="scan-btn" type="button">
+          <span class="scan-btn-ring" aria-hidden="true"></span>
+          <span class="scan-btn-core"><span class="scan-dot"></span><span id="scan-label">重新检测</span></span>
+          <kbd class="scan-kbd">R</kbd>
+        </button>
+        <a id="report-link" class="ghost-btn" href="/api/latest" target="_blank" rel="noreferrer noopener">原始 JSON</a>
+        <span id="status" class="status mono" role="status" aria-live="polite">READY</span>
+      </div>
+    </div>
+    <div class="gauge-wrap">
+      <div class="gauge" id="gauge">
+        <svg class="gauge-svg" viewBox="0 0 220 220" aria-hidden="true">
+          <defs>
+            <linearGradient id="gauge-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#22d3ee"/>
+              <stop offset="100%" stop-color="#a78bfa"/>
+            </linearGradient>
+            <filter id="gauge-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <g id="gauge-ticks"></g>
+          <circle class="gauge-track" cx="110" cy="110" r="82"/>
+          <circle class="gauge-arc" id="gauge-arc" cx="110" cy="110" r="82"
+                  stroke="url(#gauge-gradient)" filter="url(#gauge-glow)"/>
+          <circle class="gauge-head" id="gauge-head" r="4" filter="url(#gauge-glow)"/>
+        </svg>
+        <div class="gauge-inner">
+          <b id="score">—</b>
+          <span>SAFETY / 100 · 越高越安全</span>
+        </div>
+        <div class="gauge-pulse" aria-hidden="true"></div>
+      </div>
+      <div id="coverage" class="mono muted gauge-caption">覆盖率 —</div>
+      <div id="score-basis" class="mono score-basis" hidden></div>
+      <div class="bands" id="bands" aria-hidden="true">
+        <div class="bands-track">
+          <i class="band crit"></i><i class="band high"></i><i class="band med"></i><i class="band low"></i>
+          <b class="band-marker" id="band-marker"></b>
+        </div>
+        <div class="bands-labels"><span>极高</span><span>高</span><span>中</span><span>安全</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stats" id="stats"></section>
+
+  <section class="grid">
+    <div class="card glass" data-reveal>
+      <h2><span class="dot">▦</span>信号分类</h2>
+      <div id="categories" class="categories"></div>
+    </div>
+    <div class="card glass" data-reveal>
+      <h2><span class="dot">!</span>发现 <span id="finding-count" class="count"></span></h2>
+      <div class="filters" id="filters">
+        <button class="filter active" data-filter="all" type="button">全部</button>
+        <button class="filter" data-filter="high" type="button">高危</button>
+        <button class="filter" data-filter="warn" type="button">提醒</button>
+        <button class="filter" data-filter="unknown" type="button">未知</button>
+      </div>
+      <div id="findings" class="findings"></div>
+    </div>
+  </section>
+
+  <section class="card glass fixes-card" data-reveal>
+    <h2><span class="dot">→</span>修复顺序</h2>
+    <ol id="fixes" class="fixes"></ol>
+  </section>
+
+  <section class="card glass egress-card" data-reveal>
+    <h2><span class="dot">⇄</span>多路出口 <span class="count">浏览器 / Claude Code / 各域名</span></h2>
+    <div id="egress" class="egress"></div>
+  </section>
+
+  <section class="grid">
+    <div class="card glass" data-reveal>
+      <h2><span class="dot">◉</span>环境快照</h2>
+      <div id="env" class="kv"></div>
+    </div>
+    <div class="card glass" data-reveal>
+      <h2><span class="dot">∿</span>历史与漂移</h2>
+      <div id="history" class="history"></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>只读 · 本地 · 无遥测 · 非官方</span>
+    <span id="version" class="mono"></span>
+  </footer>
+</main>
+
+<!-- Cinematic scan overlay ------------------------------------------------->
+<div id="scanner" class="scanner" aria-hidden="true">
+  <div class="scanner-grid"></div>
+  <div class="scanner-beam"></div>
+  <div class="scanner-sweep"></div>
+  <div class="scanner-hud">
+    <div class="radar">
+      <div class="radar-rings"><i></i><i></i><i></i></div>
+      <div class="radar-cross"></div>
+      <div class="radar-sweep"></div>
+      <div class="radar-blips" id="radar-blips"></div>
+      <div class="radar-core">
+        <b id="scan-percent">0</b><span>%</span>
+      </div>
+    </div>
+    <div class="scan-readout">
+      <div class="scan-head">
+        <span class="scan-title">ENVIRONMENT SWEEP</span>
+        <span class="scan-counter mono"><b id="scan-done">0</b> / <span id="scan-total">16</span></span>
+      </div>
+      <div id="scan-current" class="scan-current">正在初始化检测引擎…</div>
+      <div class="scan-track"><i id="scan-fill"></i><span class="scan-track-glow"></span></div>
+      <ol id="scan-stages" class="scan-stages"></ol>
+      <div class="scan-foot mono">
+        <span id="scan-elapsed">0.0s</span>
+        <span>READ-ONLY · NO UPLOAD</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="flash" class="flash" aria-hidden="true"></div>
+
+<script>window.__SENTINEL__ = { token: "__TOKEN__", version: "__VERSION__" };</script>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

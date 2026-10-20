@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<title>Claude Sentinel · {{ view.verdict.headline }}</title>
+<style>
+  :root {
+    --bg: #05070b;
+    --panel: #0b1018;
+    --line: #12202e;
+    --line-strong: #1d3448;
+    --text: #e5f2ff;
+    --muted: #6b8299;
+    --cyan: #22d3ee;
+    --green: #34d399;
+    --amber: #f59e0b;
+    --red: #f43f5e;
+    --violet: #a78bfa;
+    --accent: {{ view.verdict.color }};
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(900px 500px at 78% -8%, rgba(34,211,238,.10), transparent 60%),
+      radial-gradient(700px 420px at 6% 12%, rgba(167,139,250,.08), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(34,211,238,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34,211,238,.035) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,.8), transparent 78%);
+    z-index: 0;
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0,0,0,.16) 2px 3px);
+    opacity: .35;
+    z-index: 1;
+  }
+  .wrap { position: relative; z-index: 2; width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+  a { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, .mono { font-family: var(--mono); }
+
+  header.wrap { padding: 28px 0 10px; display: flex; justify-content: space-between; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+  .brand { font-family: var(--mono); letter-spacing: .14em; font-weight: 700; font-size: 15px; color: var(--text); }
+  .brand .mark { color: var(--cyan); text-shadow: 0 0 18px rgba(34,211,238,.7); }
+  .brand .tag { margin-left: 10px; padding: 2px 7px; border: 1px solid var(--line-strong); color: var(--muted); font-size: 10px; letter-spacing: .12em; border-radius: 999px; }
+  .meta { font-family: var(--mono); color: var(--muted); font-size: 11px; letter-spacing: .04em; }
+
+  .hero {
+    margin-top: 18px;
+    border: 1px solid var(--line);
+    border-top: 2px solid var(--accent);
+    background: linear-gradient(180deg, rgba(11,16,24,.94), rgba(7,10,15,.92));
+    border-radius: 16px;
+    padding: 28px;
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.02), 0 24px 80px rgba(0,0,0,.45);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    width: 320px; height: 320px; right: -80px; top: -140px;
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent) 18%, transparent), transparent 70%);
+    pointer-events: none;
+  }
+  .hero-main { flex: 1 1 auto; min-width: 0; }
+  .eyebrow { font-family: var(--mono); color: var(--accent); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; }
+  h1 { margin: 6px 0 8px; font-size: clamp(28px, 4.2vw, 46px); line-height: 1.1; letter-spacing: -.02em; }
+  .reason { margin: 0; color: #b9cde0; max-width: 720px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 999px; padding: 3px 9px; }
+  .chip strong { color: var(--text); font-weight: 600; }
+  .account-note { margin-top: 14px; font-size: 12px; color: var(--muted); border-left: 2px solid var(--line-strong); padding-left: 10px; }
+  .score-basis { margin-top: 10px; font-size: 11px; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .chip em { font-style: normal; opacity: .65; font-size: 9px; }
+
+  .score { flex: 0 0 170px; text-align: center; position: relative; }
+  .score svg { width: 160px; height: 160px; transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: #152535; stroke-width: 10; }
+  .ring-fg.ring-empty { stroke: transparent; filter: none; }
+  .ring-fg { fill: none; stroke: var(--accent); stroke-width: 10; stroke-linecap: round; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 60%, transparent)); }
+  .score-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--mono); }
+  .score-num b { font-size: 34px; line-height: 1; color: var(--text); }
+  .score-num span { font-size: 9px; letter-spacing: .18em; color: var(--muted); margin-top: 5px; }
+  .coverage { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 14px 0 0; }
+  .stat { border: 1px solid var(--line); background: rgba(11,16,24,.75); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .stat .k { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: .12em; }
+  .stat .v { font-family: var(--mono); font-size: 15px; margin-top: 4px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat .h { font-size: 11px; color: var(--muted); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 14px; margin-top: 14px; }
+  .card { border: 1px solid var(--line); background: linear-gradient(180deg, rgba(11,16,24,.88), rgba(7,10,15,.88)); border-radius: 14px; padding: 20px; min-width: 0; }
+  .card h2 { margin: 0 0 14px; font-family: var(--mono); font-size: 11px; letter-spacing: .16em; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+  .card h2 .dot { color: var(--cyan); margin-right: 7px; }
+
+  #radar { width: 100%; height: auto; display: block; }
+  .radar-label { fill: #9ab2c8; font-size: 10px; font-family: var(--mono); }
+  .radar-grid { fill: none; stroke: #172a3b; stroke-width: 1; }
+  .radar-axis { stroke: #172a3b; stroke-width: 1; }
+  .radar-poly { fill: color-mix(in srgb, var(--cyan) 16%, transparent); stroke: var(--cyan); stroke-width: 2; filter: drop-shadow(0 0 6px rgba(34,211,238,.35)); }
+  .radar-dot { fill: var(--cyan); }
+
+  .cat { margin-bottom: 13px; }
+  .cat-head { display: flex; justify-content: space-between; font-size: 12px; color: #c7d8e8; }
+  .cat-head b { font-family: var(--mono); color: var(--text); }
+  .bar { height: 6px; background: #101d29; border-radius: 99px; margin-top: 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--cyan), var(--violet)); box-shadow: 0 0 12px rgba(34,211,238,.35); }
+  .cat-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+  ol.fixes { margin: 0; padding-left: 20px; }
+  ol.fixes li { margin: 7px 0; color: #d8e7f5; }
+  ol.fixes li::marker { color: var(--cyan); font-family: var(--mono); }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .filter { background: transparent; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 999px; padding: 4px 11px; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; cursor: pointer; }
+  .filter:hover, .filter.active { color: var(--bg); background: var(--cyan); border-color: var(--cyan); }
+
+  .finding { display: grid; grid-template-columns: 64px 1fr 76px; gap: 14px; padding: 14px 0; border-top: 1px solid var(--line); }
+  .finding:first-of-type { border-top: 0; }
+  .finding .sev { font-family: var(--mono); font-size: 9px; letter-spacing: .1em; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; border: 1px solid; align-self: start; }
+  .sev-high .sev, .sev-critical .sev { color: var(--red); border-color: rgba(244,63,94,.45); background: rgba(244,63,94,.08); }
+  .sev-medium .sev { color: var(--amber); border-color: rgba(245,158,11,.45); background: rgba(245,158,11,.08); }
+  .sev-low .sev { color: var(--cyan); border-color: rgba(34,211,238,.4); background: rgba(34,211,238,.07); }
+  .sev-info .sev { color: var(--muted); border-color: var(--line-strong); background: rgba(107,130,153,.07); }
+  .finding[data-sev="unknown"] .sev { color: var(--muted); border-color: var(--line-strong); background: rgba(107,130,153,.06); }
+  .finding[data-sev="unknown"] h3 { color: #b7ccdf; }
+  .finding h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--text); }
+  .finding p { margin: 0; font-size: 12px; color: #a9bfd3; }
+  .finding .fix { margin-top: 7px; color: var(--muted); font-size: 11.5px; border-left: 2px solid var(--line-strong); padding-left: 9px; }
+  .finding .tags { margin-top: 7px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { font-family: var(--mono); font-size: 9px; letter-spacing: .06em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 7px; }
+  .pts { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: right; white-space: nowrap; }
+  .gate-badge { color: var(--amber); border-color: rgba(245,158,11,.4); }
+
+  .obs-group { margin-bottom: 16px; }
+  .obs-group h3 { margin: 0 0 8px; font-size: 11px; font-family: var(--mono); letter-spacing: .1em; color: var(--cyan); font-weight: 500; }
+  .obs { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px dashed rgba(29,52,72,.55); font-size: 11px; }
+  .obs:last-child { border-bottom: 0; }
+  .obs .l { color: #b7ccdf; white-space: nowrap; }
+  .obs .d { color: var(--muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 68%; }
+  .dot-s { display: inline-block; width: 6px; height: 6px; border-radius: 99px; margin-right: 6px; background: var(--muted); }
+  .dot-s.ok { background: var(--green); box-shadow: 0 0 6px rgba(52,211,153,.7); }
+  .dot-s.warn { background: var(--amber); }
+  .dot-s.high { background: var(--red); }
+  .dot-s.info { background: var(--cyan); }
+
+  #spark { width: 100%; height: 90px; display: block; }
+  .spark-line { fill: none; stroke: var(--cyan); stroke-width: 2; }
+  .spark-area { fill: color-mix(in srgb, var(--cyan) 12%, transparent); }
+  .spark-dot { fill: var(--cyan); }
+  .spark-note { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+
+  .hist-row { display: grid; grid-template-columns: 1fr 1.4fr 42px 50px; gap: 8px; font-family: var(--mono); font-size: 10px; color: var(--muted); padding: 4px 0; border-bottom: 1px dashed rgba(29,52,72,.45); }
+  .hist-row:last-child { border-bottom: 0; }
+  .hist-row .v { color: #c7d8e8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .drift { margin-top: 12px; }
+  .drift-item { display: flex; gap: 8px; font-size: 11px; color: #b7ccdf; padding: 4px 0; }
+  .drift-item .k { color: var(--muted); min-width: 70px; }
+  .drift-item .arrow { color: var(--amber); }
+
+  .sources { display: flex; flex-wrap: wrap; gap: 8px; }
+  .source { font-size: 11px; color: #b7ccdf; border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; }
+  .source .kind { font-family: var(--mono); font-size: 8px; letter-spacing: .08em; color: var(--muted); margin-left: 6px; }
+
+  .disclaimer { color: var(--muted); font-size: 11.5px; }
+  .disclaimer li { margin: 5px 0; }
+  .error { color: var(--amber); font-size: 11px; font-family: var(--mono); }
+
+  footer { padding: 28px 0 40px; color: var(--muted); font-size: 10.5px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .copy { background: transparent; border: 1px solid var(--line-strong); color: var(--muted); border-radius: 6px; padding: 4px 9px; font-family: var(--mono); font-size: 10px; cursor: pointer; }
+  .copy:hover { color: var(--cyan); border-color: var(--cyan); }
+
+  @media (max-width: 900px) {
+    .hero { flex-direction: column; align-items: flex-start; }
+    .score { align-self: center; }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 520px) {
+    .finding { grid-template-columns: 1fr; gap: 8px; }
+    .pts { text-align: left; }
+    .stats { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+  @media print {
+    body { background: #fff; color: #111; }
+    body::before, body::after { display: none; }
+    .card, .hero, .stat { background: #fff; border-color: #ccc; box-shadow: none; }
+    .reason, .finding p, .obs .l, .drift-item { color: #333; }
+  }
+</style>
+</head>
+<body>
+<header class="wrap">
+  <div class="brand"><span class="mark">◈</span> CLAUDE SENTINEL<span class="tag">LOCAL ONLY</span></div>
+  <div class="meta">RUN {{ view.run_id }} · {{ view.generated_at }} · v{{ view.app_version }} · RULES {{ view.rules_version }}</div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <div class="hero-main">
+      <div class="eyebrow">{{ view.verdict.title }} / {{ view.verdict.code }}</div>
+      <h1>{{ view.verdict.headline }}</h1>
+      <p class="reason">{{ view.verdict.reason }}</p>
+      <div class="chips">
+        <span class="chip">SAFETY <strong>{{ view.score_display }}</strong> / 100 <em>越高越安全</em></span>
+        <span class="chip">LEVEL <strong>{{ view.level_zh }}</strong></span>
+        <span class="chip">COVERAGE <strong>{{ view.coverage_pct }}%</strong></span>
+        <span class="chip">CONFIDENCE <strong>{{ view.confidence|upper }}</strong></span>
+        <span class="chip">GATE <strong>{{ view.verdict.gate or "NONE" }}</strong></span>
+        {% if view.reference_mode %}<span class="chip">MODE <strong>REFERENCE</strong></span>{% endif %}
+      </div>
+      {% if view.score_basis %}<div class="score-basis">{{ view.score_basis }}</div>{% endif %}
+      <div class="account-note">{{ view.verdict.account_note }}</div>
+    </div>
+    <div class="score">
+      <svg viewBox="0 0 160 160" aria-hidden="true">
+        <circle class="ring-bg" cx="80" cy="80" r="64"></circle>
+        <circle class="ring-fg{% if view.gauge_empty %} ring-empty{% endif %}" id="gauge" cx="80" cy="80" r="64" pathLength="100" style="stroke-dasharray: {{ 0 if view.gauge_empty else view.score|round(0)|int }} 100;"></circle>
+      </svg>
+      <div class="score-num"><b>{{ view.score_display }}</b><span>SAFETY / 100</span></div>
+      <div class="coverage">COVERAGE {{ view.coverage_pct }}%</div>
+    </div>
+  </section>
+
+  <section class="stats">
+    {% for stat in view.stats %}
+    <div class="stat">
+      <div class="k">{{ stat.label }}</div>
+      <div class="v">{{ stat.value }}</div>
+      <div class="h">{{ stat.hint }}</div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h2><span class="dot">◈</span>六轴信号</h2>
+      <svg id="radar" viewBox="0 0 320 300" role="img" aria-label="六轴风险信号"></svg>
+    </div>
+    <div class="card">
+      <h2><span class="dot">▦</span>分类得分</h2>
+      {% for cat in view.categories %}
+      <div class="cat">
+        <div class="cat-head"><span>{{ cat.label }}</span><b>{{ cat.score if cat.score is not none else "—" }}</b></div>
+        <div class="bar"><i style="width: {{ cat.score or 0 }}%"></i></div>
+        <div class="cat-meta">权重 {{ cat.weight }} · 覆盖 {{ cat.coverage }}%</div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2><span class="dot">→</span>修复顺序</h2>
+    <ol class="fixes">
+      {% for fix in view.fixes %}
+      <li>{{ fix }}</li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2><span class="dot">!</span>发现 · {{ view.findings|length }}</h2>
+    <div class="filters">
+      <button class="filter active" data-filter="all">全部</button>
+      <button class="filter" data-filter="high">高危</button>
+      <button class="filter" data-filter="warn">提醒</button>
+      <button class="filter" data-filter="unknown">未知</button>
+    </div>
+    {% for item in view.findings %}
+    <article class="finding sev-{{ item.severity }}" data-sev="{{ item.status }}">
+      <div class="sev">{{ "GATE" if item.is_gate else (item.status_zh if item.status in ["unknown", "warn"] else item.severity_zh|upper) }}</div>
+      <div>
+        <h3>{{ item.title }}</h3>
+        <p>{{ item.evidence }}</p>
+        {% if item.fix %}<p class="fix">{{ item.fix }}</p>{% endif %}
+        <div class="tags">
+          <span class="tag">{{ item.rule_id }}</span>
+          <span class="tag">{{ item.status_zh }}</span>
+          <span class="tag">{{ item.visibility_zh }}</span>
+          <span class="tag">置信 {{ item.confidence }}</span>
+          {% if item.is_gate %}<span class="tag gate-badge">硬闸门</span>{% endif %}
+          {% for src in item.sources[:2] %}
+          <span class="tag">{% if src.url %}<a href="{{ src.url }}" target="_blank" rel="noreferrer noopener">{{ src.name }}</a>{% else %}{{ src.name }}{% endif %}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="pts">{{ "—" if item.is_gate else (item.points|int ~ "/" ~ item.max_points|int) }}</div>
+    </article>
+    {% endfor %}
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <h2><span class="dot">◉</span>Claude 能看到什么</h2>
+      {% for group in view.obs_groups %}
+      <div class="obs-group">
+        <h3>{{ group.label }}</h3>
+        {% for obs in group.entries %}
+        <div class="obs">
+          <span class="l"><i class="dot-s {{ obs.status }}"></i>{{ obs.label }}</span>
+          <span class="d" title="{{ obs.detail }}">{{ obs.detail }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="card">
+      <h2><span class="dot">∿</span>历史与漂移</h2>
+      <svg id="spark" viewBox="0 0 340 90" role="img" aria-label="历史安全分"></svg>
+      <div class="spark-note" id="spark-note">{{ "首次运行，已记录基线" if view.history.baseline else "最近 " ~ view.history.scores|length ~ " 次安全分" }}</div>
+      {% if view.history.runs %}
+      <div style="margin-top:10px">
+        {% for row in view.history.runs %}
+        <div class="hist-row">
+          <span>{{ row.time }}</span>
+          <span class="v">{{ row.verdict }}</span>
+          <span>{{ row.score if row.score is not none else "—" }}</span>
+          <span>{{ row.country }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if view.history.drift %}
+      <div class="drift">
+        {% for d in view.history.drift %}
+        <div class="drift-item"><span class="k">{{ d.label }}</span><span>{{ d.previous }}</span><span class="arrow">→</span><span>{{ d.current }}</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2><span class="dot">⛁</span>数据源与边界</h2>
+    <div class="sources">
+      {% for s in view.sources %}
+      <span class="source">{% if s.url %}<a href="{{ s.url }}" target="_blank" rel="noreferrer noopener">{{ s.name }}</a>{% else %}{{ s.name }}{% endif %}<span class="kind">{{ s.kind }}</span></span>
+      {% endfor %}
+    </div>
+    <ul class="disclaimer" style="margin-top:14px">
+      {% for d in view.disclaimers %}<li>{{ d }}</li>{% endfor %}
+    </ul>
+    {% if view.errors %}
+    <div style="margin-top:10px">
+      {% for e in view.errors %}<div class="error">! {{ e }}</div>{% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  <footer>
+    <div>Claude Sentinel · 本地只读 · 非官方 · 不构成封号预测</div>
+    <div><button class="copy" id="copy">复制 JSON</button></div>
+  </footer>
+</main>
+
+<script>
+const VIEW = {{ view_json|safe }};
+(function () {
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#22d3ee';
+
+  // Radar
+  const radar = document.getElementById('radar');
+  if (radar && VIEW.radar.length) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const cx = 160, cy = 150, R = 108, n = VIEW.radar.length;
+    const point = (i, value) => {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / n;
+      const r = R * Math.max(0, Math.min(100, value)) / 100;
+      return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    };
+    const polygon = (points, cls) => {
+      const el = document.createElementNS(NS, 'polygon');
+      el.setAttribute('points', points.map(p => p.join(',')).join(' '));
+      el.setAttribute('class', cls);
+      radar.appendChild(el);
+    };
+    [25, 50, 75, 100].forEach(level => {
+      polygon(Array.from({length: n}, (_, i) => point(i, level)), 'radar-grid');
+    });
+    VIEW.radar.forEach((item, i) => {
+      const [x, y] = point(i, 100);
+      const line = document.createElementNS(NS, 'line');
+      line.setAttribute('x1', cx); line.setAttribute('y1', cy);
+      line.setAttribute('x2', x); line.setAttribute('y2', y);
+      line.setAttribute('class', 'radar-axis');
+      radar.appendChild(line);
+      const [lx, ly] = point(i, 126);
+      const text = document.createElementNS(NS, 'text');
+      text.setAttribute('x', lx); text.setAttribute('y', ly + 4);
+      text.setAttribute('text-anchor', Math.abs(lx - cx) < 8 ? 'middle' : (lx > cx ? 'start' : 'end'));
+      text.setAttribute('class', 'radar-label');
+      text.textContent = item.label + (item.available ? '' : ' —');
+      radar.appendChild(text);
+    });
+    const dataPoints = VIEW.radar.map((item, i) => point(i, item.value));
+    polygon(dataPoints, 'radar-poly');
+    dataPoints.forEach(([x, y]) => {
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('cx', x); dot.setAttribute('cy', y); dot.setAttribute('r', 3);
+      dot.setAttribute('class', 'radar-dot');
+      radar.appendChild(dot);
+    });
+  }
+
+  // Sparkline
+  const spark = document.getElementById('spark');
+  const scores = (VIEW.history.scores || []).filter(v => typeof v === 'number');
+  if (spark && scores.length >= 2) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const w = 340, h = 90, pad = 8;
+    const min = 0, max = 100;
+    const x = i => pad + (w - 2 * pad) * (i / (scores.length - 1));
+    const y = v => h - pad - (h - 2 * pad) * ((v - min) / (max - min));
+    const pts = scores.map((v, i) => [x(i), y(v)]);
+    const area = document.createElementNS(NS, 'polygon');
+    area.setAttribute('points', `${pad},${h - pad} ${pts.map(p => p.join(',')).join(' ')} ${w - pad},${h - pad}`);
+    area.setAttribute('class', 'spark-area');
+    spark.appendChild(area);
+    const line = document.createElementNS(NS, 'polyline');
+    line.setAttribute('points', pts.map(p => p.join(',')).join(' '));
+    line.setAttribute('class', 'spark-line');
+    spark.appendChild(line);
+    pts.forEach(([px, py]) => {
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('cx', px); dot.setAttribute('cy', py); dot.setAttribute('r', 2.6);
+      dot.setAttribute('class', 'spark-dot');
+      spark.appendChild(dot);
+    });
+  } else if (document.getElementById('spark-note')) {
+    document.getElementById('spark-note').textContent = scores.length === 1 ? '已有 1 次记录；再跑一次即可看到趋势' : '暂无历史分数';
+  }
+
+  // Findings filter
+  document.querySelectorAll('[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const want = btn.getAttribute('data-filter');
+      document.querySelectorAll('.finding').forEach(row => {
+        row.style.display = (want === 'all' || row.getAttribute('data-sev') === want) ? '' : 'none';
+      });
+    });
+  });
+
+  // Copy JSON
+  const copy = document.getElementById('copy');
+  if (copy) {
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(VIEW, null, 2));
+        copy.textContent = '已复制';
+        setTimeout(() => { copy.textContent = '复制 JSON'; }, 1600);
+      } catch (e) {
+        copy.textContent = '复制失败';
+      }
+    });
+  }
+})();
+</script>
+</body>
+</html>

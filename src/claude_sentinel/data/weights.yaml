@@ -1,0 +1,32 @@
+version: 2
+effective: "2026-10-20"
+# Expert priors, not probabilities. The ordering reflects evidence strength:
+# official/observable network signals first, self-reported account context last.
+rationale: >-
+  v2 取舍：IP 信誉与官方区域闸门最可验证；客户端中转最可操作；
+  稳定性容易受网络波动影响；账号自报与 deep 行为置信度最低。
+categories:
+  ip:
+    weight: 30
+    label: "网络出口与信誉"
+  identity:
+    weight: 20
+    label: "本地身份一致性"
+  client:
+    weight: 20
+    label: "客户端与中转"
+  stability:
+    weight: 12
+    label: "出口稳定性"
+  account:
+    weight: 10
+    label: "账号画像"
+  behavior:
+    weight: 8
+    label: "行为模式"
+# Safety bands (higher = safer, 100 = clean, 0 = worst).
+# A score at or above `safe` reads as low risk; below `high_risk` as critical.
+bands:
+  safe: 86        # >= 86  -> 低风险
+  caution: 66     # >= 66  -> 中
+  high_risk: 41   # >= 41  -> 高；< 41 -> 极高
